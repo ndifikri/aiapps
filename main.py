@@ -17,10 +17,29 @@ st.set_page_config(
     layout="wide",
 )
 
+# ─── Auth Gate ────────────────────────────────────────────────────────────────
+if not st.user.is_logged_in:
+    st.title("Welcome to AI Apps 🤖")
+    st.markdown("Silakan login untuk menggunakan aplikasi.")
+    if st.button("Login with Google Account", type="primary"):
+        st.login("google")
+    st.stop()
+
 # ─── Sidebar ─────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.title("🤖 AI Apps")
+    with st.container(border=True):
+        col_pic, col_info = st.columns([1, 2])
+        with col_pic:
+            st.image(st.user["picture"], width=56)
+        with col_info:
+            st.markdown(f"**{st.user['name']}**")
+            email_status = "✅" if st.user.email_verified else "❌"
+            st.caption(f"{st.user['email']} {email_status}")
+    if st.button("Logout", type="primary", use_container_width=True):
+        st.logout()
+
     st.divider()
+    st.title("🤖 AI Apps")
     menu = st.radio(
         "Pilih Menu",
         ["💬 Chatbot", "🎨 Image Generation"],
