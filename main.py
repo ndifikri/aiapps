@@ -1,17 +1,13 @@
 import io
-import os
 
 import streamlit as st
-from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from PIL import Image
 
-load_dotenv()
-
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-CHAT_MODEL_NAME = os.getenv("CHAT_MODEL_NAME", "gemini-2.0-flash")
-IMAGE_MODEL_NAME = os.getenv("IMAGE_MODEL_NAME", "gemini-2.0-flash-preview-image-generation")
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+CHAT_MODEL_NAME = st.secrets["CHAT_MODEL_NAME"]
+IMAGE_MODEL_NAME = st.secrets["IMAGE_MODEL_NAME"]
 
 client = genai.Client(api_key=GOOGLE_API_KEY)
 

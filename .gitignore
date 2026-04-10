@@ -114,6 +114,9 @@ celerybeat.pid
 
 # Environments
 .env
+
+# Streamlit secrets
+.streamlit/secrets.toml
 .envrc
 .venv
 env/
