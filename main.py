@@ -187,6 +187,19 @@ if menu == "💬 Chatbot":
 elif menu == "🎨 Image Generation":
     st.title("🎨 Image Generation")
 
+    # ── Prompt Enhancer toggle ────────────────────────────────────────────────
+    # Saat diaktifkan, prompt user dikirim terlebih dahulu ke CHAT_MODEL untuk
+    # diubah menjadi redaksi prompt image generation yang lebih deskriptif dan
+    # efektif, sebelum diteruskan ke IMAGE_MODEL.
+    enhance_prompt = st.toggle(
+        "✨ Prompt Enhancer",
+        value=False,
+        help=(
+            "Aktifkan agar prompt Anda otomatis diperbaiki dan diperkaya oleh AI "
+            "sebelum dikirim ke model image generation."
+        ),
+    )
+
     prompt = st.text_area(
         "Prompt",
         placeholder="Contoh: A futuristic city at night with neon lights reflecting on a rainy street…",
@@ -201,14 +214,49 @@ elif menu == "🎨 Image Generation":
         if not prompt.strip():
             st.warning("Silakan isi prompt terlebih dahulu.")
         else:
+            # ── Tahap 1 (opsional): perbaiki prompt via chat model ────────────
+            final_prompt = prompt
+
+            if enhance_prompt:
+                with st.spinner("Memperbaiki prompt…"):
+                    try:
+                        enhance_instruction = (
+                            "You are an expert AI image generation prompt engineer. "
+                            "Rewrite the following user prompt into a highly detailed, "
+                            "vivid, and effective image generation prompt. "
+                            "Improve composition, lighting, style, mood, and visual details. "
+                            "Return ONLY the improved prompt text, no explanation, "
+                            "no prefix, no quotes.\n\n"
+                            f"User prompt: {prompt}"
+                        )
+                        enhance_response = client.models.generate_content(
+                            model=CHAT_MODEL_NAME,
+                            contents=enhance_instruction,
+                        )
+                        final_prompt = enhance_response.text.strip()
+                    except Exception as e:
+                        st.warning(f"Prompt Enhancer gagal, menggunakan prompt asli. ({e})")
+                        final_prompt = prompt
+
+                # Tampilkan perbandingan prompt asli vs prompt yang telah diperbaiki
+                with st.expander("🔍 Lihat perbandingan prompt", expanded=True):
+                    col_orig, col_enhanced = st.columns(2)
+                    with col_orig:
+                        st.markdown("**Prompt asli**")
+                        st.info(prompt)
+                    with col_enhanced:
+                        st.markdown("**Prompt setelah di-enhance**")
+                        st.success(final_prompt)
+
+            # ── Tahap 2: generate gambar dengan final_prompt ──────────────────
             with st.spinner("Generating image…"):
                 try:
-                    # Kirim prompt ke model image generation.
+                    # Kirim final_prompt ke model image generation.
                     # response_modalities ["TEXT", "IMAGE"] memungkinkan model
                     # mengembalikan teks (caption/deskripsi) sekaligus gambar.
                     response = client.models.generate_content(
                         model=IMAGE_MODEL_NAME,
-                        contents=prompt,
+                        contents=final_prompt,
                         config=types.GenerateContentConfig(
                             response_modalities=["TEXT", "IMAGE"]
                         ),
