@@ -20,8 +20,8 @@ client = genai.Client(api_key=GOOGLE_API_KEY)
 MEMORY_WINDOW = 5
 
 st.set_page_config(
-    page_title="AI Apps",
-    page_icon="🤖",
+    page_title="Lumina AI",
+    page_icon="✨",
     layout="wide",
 )
 
@@ -30,10 +30,48 @@ st.set_page_config(
 # Jika belum login, tampilkan halaman landing dan hentikan eksekusi lebih lanjut
 # dengan st.stop() agar halaman utama tidak ikut ter-render.
 if not st.user.is_logged_in:
-    st.title("Welcome to AI Apps 🤖")
-    st.markdown("Silakan login untuk menggunakan aplikasi.")
-    if st.button("Login with Google Account", type="primary"):
-        st.login("google")  # redirect ke Google OAuth
+    # ── Hero Section ──────────────────────────────────────────────────────────
+    col_hero, col_space = st.columns([2, 1])
+    with col_hero:
+        st.markdown("# ✨ Lumina AI")
+        st.markdown("### *Illuminate your ideas — from words to visuals.*")
+        st.markdown(
+            "Lumina AI adalah platform AI kreatif yang menggabungkan kekuatan "
+            "**chatbot multimodal** dan **image generation** dalam satu tempat. "
+            "Didukung oleh Google Gemini, Lumina hadir sebagai partner kreatif "
+            "yang membantu Anda mengekspresikan ide lewat percakapan maupun visual."
+        )
+        st.markdown("")
+        if st.button("🔐  Login with Google Account", type="primary"):
+            st.login("google")  # redirect ke Google OAuth
+        st.caption("Lumina AI menggunakan Google OAuth 2.0 untuk autentikasi yang aman.")
+
+    st.divider()
+
+    # ── Feature Highlights ────────────────────────────────────────────────────
+    st.markdown("### Apa yang bisa Lumina AI lakukan?")
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown("#### 💬 Multimodal Chatbot")
+        st.markdown(
+            "Berinteraksi dengan AI menggunakan teks, gambar, atau file. "
+            "Lumina mengingat konteks percakapan sehingga diskusi terasa natural dan mengalir."
+        )
+    with col2:
+        st.markdown("#### 🎨 Image Generation")
+        st.markdown(
+            "Ubah ide menjadi gambar hanya dari sebuah kalimat. "
+            "Gunakan fitur **Prompt Enhancer** agar deskripsi Anda dioptimalkan "
+            "oleh AI sebelum gambar di-generate."
+        )
+    with col3:
+        st.markdown("#### 🔒 Aman & Personal")
+        st.markdown(
+            "Login dengan akun Google Anda. Data sesi hanya tersimpan "
+            "selama browser terbuka dan tidak dibagikan ke pihak manapun."
+        )
+
     st.stop()
 
 # ─── Sidebar ─────────────────────────────────────────────────────────────────
@@ -54,7 +92,8 @@ with st.sidebar:
         st.logout()
 
     st.divider()
-    st.title("🤖 AI Apps")
+    st.markdown("## ✨ Lumina AI")
+    st.caption("*Illuminate your ideas.*")
 
     # Navigasi menu utama
     menu = st.radio(
@@ -79,6 +118,12 @@ def pil_to_part(img: Image.Image, mime_type: str = "image/png") -> types.Part:
 # ─── MENU: CHATBOT ────────────────────────────────────────────────────────────
 if menu == "💬 Chatbot":
     st.title("💬 Chatbot")
+    st.markdown(
+        "Tanyakan apa saja kepada Lumina — mulai dari pertanyaan umum, analisis dokumen, "
+        "hingga diskusi kreatif. Anda juga bisa melampirkan **gambar atau file** "
+        "untuk dibahas bersama."
+    )
+    st.divider()
 
     # Inisialisasi dua daftar di session_state (per-sesi browser):
     #   display_messages : riwayat untuk ditampilkan di UI (teks + gambar + nama file)
@@ -186,6 +231,12 @@ if menu == "💬 Chatbot":
 # ─── MENU: IMAGE GENERATION ───────────────────────────────────────────────────
 elif menu == "🎨 Image Generation":
     st.title("🎨 Image Generation")
+    st.markdown(
+        "Ubah ide Anda menjadi sebuah gambar hanya dengan mendeskripsikannya. "
+        "Aktifkan **Prompt Enhancer** agar AI membantu memperkaya deskripsi Anda "
+        "sebelum gambar di-generate."
+    )
+    st.divider()
 
     # ── Prompt Enhancer toggle ────────────────────────────────────────────────
     # Saat diaktifkan, prompt user dikirim terlebih dahulu ke CHAT_MODEL untuk

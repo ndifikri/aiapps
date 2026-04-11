@@ -1,6 +1,7 @@
-# AI Apps
+# ✨ Lumina AI
+> *Illuminate your ideas — from words to visuals.*
 
-Aplikasi AI berbasis Streamlit yang mengintegrasikan Google Gemini untuk dua fitur utama: chatbot multimodal dan image generation. Dilengkapi autentikasi Google OAuth agar hanya pengguna yang login yang dapat mengakses aplikasi.
+Lumina AI adalah platform AI kreatif berbasis Streamlit yang mengintegrasikan Google Gemini untuk dua fitur utama: chatbot multimodal dan image generation. Dilengkapi autentikasi Google OAuth agar hanya pengguna yang login yang dapat mengakses aplikasi.
 
 ## Fitur
 
@@ -60,7 +61,7 @@ uv run streamlit run main.py
 ## Struktur Project
 
 ```
-aiapps/
+lumina-ai/
 ├── main.py                     # Entrypoint aplikasi Streamlit
 ├── pyproject.toml              # Konfigurasi project & dependencies (uv)
 ├── uv.lock                     # Lock file dependencies
