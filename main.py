@@ -115,13 +115,37 @@ def pil_to_part(img: Image.Image, mime_type: str = "image/png") -> types.Part:
     return types.Part.from_bytes(data=buf.getvalue(), mime_type=mime_type)
 
 
+def transcribe_audio(audio_bytes: bytes) -> str:
+    """
+    Kirim audio ke Gemini dan kembalikan hasil transkripsi sebagai string.
+    Mengembalikan string kosong jika transkripsi gagal.
+    """
+    audio_part = types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav")
+    response = client.models.generate_content(
+        model=CHAT_MODEL_NAME,
+        contents=[
+            types.Content(parts=[
+                types.Part(
+                    text=(
+                        "Transcribe the following audio accurately. "
+                        "Return ONLY the plain transcription text, "
+                        "no explanation, no prefix, no punctuation additions."
+                    )
+                ),
+                audio_part,
+            ])
+        ],
+    )
+    return response.text.strip()
+
+
 # ─── MENU: CHATBOT ────────────────────────────────────────────────────────────
 if menu == "💬 Chatbot":
     st.title("💬 Chatbot")
     st.markdown(
         "Tanyakan apa saja kepada Lumina — mulai dari pertanyaan umum, analisis dokumen, "
         "hingga diskusi kreatif. Anda juga bisa melampirkan **gambar atau file** "
-        "untuk dibahas bersama."
+        "untuk dibahas bersama, atau gunakan **input suara** untuk berbicara langsung."
     )
     st.divider()
 
@@ -134,6 +158,13 @@ if menu == "💬 Chatbot":
     if "api_messages" not in st.session_state:
         st.session_state.api_messages = []
 
+    # Cek apakah ada pesan suara yang sudah ditranskrip dari rerun sebelumnya.
+    # Pola dua-rerun: rerun pertama menyimpan transkrip ke session state,
+    # rerun kedua mengambilnya di sini dan memprosesnya sebagai input chat.
+    pending_voice = st.session_state.pop("voice_to_send", None)
+    user_input: str | None = pending_voice
+    input_source: str | None = "voice" if pending_voice else None
+
     # Tampilkan seluruh riwayat percakapan dari session_state
     for msg in st.session_state.display_messages:
         with st.chat_message(msg["role"]):
@@ -145,8 +176,9 @@ if menu == "💬 Chatbot":
                 elif part["type"] == "file":
                     st.caption(f"📎 {part['name']}")
 
-    # Komponen upload file; state-nya dipertahankan antar-rerun oleh Streamlit
-    # sampai user secara manual menghapus file dari uploader.
+    # ── File uploader ─────────────────────────────────────────────────────────
+    # State-nya dipertahankan antar-rerun oleh Streamlit sampai user
+    # secara manual menghapus file dari uploader.
     with st.expander("📎 Lampirkan file / gambar (opsional)"):
         uploaded_files = st.file_uploader(
             "Upload",
@@ -155,13 +187,57 @@ if menu == "💬 Chatbot":
             label_visibility="collapsed",
         )
 
-    # Tangkap input teks dari user melalui chat input di bagian bawah halaman
-    if user_input := st.chat_input("Ketik pesan…"):
+    # ── Voice Input ───────────────────────────────────────────────────────────
+    # Tombol rekam suara → transkripsi via Gemini → kirim sebagai pesan chat.
+    # Alur dua langkah:
+    #   1. User klik "Transkrip & Kirim" → audio ditranskrip → disimpan ke
+    #      session_state.voice_to_send → st.rerun()
+    #   2. Rerun berikutnya: voice_to_send diambil di atas (pending_voice)
+    #      dan diproses di blok pemrosesan terpadu di bawah.
+    with st.expander("🎙️ Input suara (opsional)"):
+        voice_audio = st.audio_input(
+            "Rekam pesan Anda",
+            label_visibility="collapsed",
+        )
+        if voice_audio:
+            col_vbtn, _ = st.columns([1, 3])
+            with col_vbtn:
+                send_voice = st.button(
+                    "📤 Transkrip & Kirim",
+                    type="primary",
+                    use_container_width=True,
+                )
+            if send_voice:
+                with st.spinner("Mentranskrip suara…"):
+                    try:
+                        transcribed = transcribe_audio(voice_audio.read())
+                        if transcribed:
+                            st.session_state.voice_to_send = transcribed
+                        else:
+                            st.warning("Transkripsi kosong, coba rekam ulang.")
+                    except Exception as e:
+                        st.error(f"Gagal mentranskrip: {e}")
+                st.rerun()
+
+    # ── Text input ────────────────────────────────────────────────────────────
+    # st.chat_input selalu dirender di bagian bawah halaman.
+    # Jika user mengetik dan menekan Enter, nilainya diambil di sini.
+    text_input = st.chat_input("Ketik pesan…")
+    if text_input:
+        user_input = text_input
+        input_source = "text"
+
+    # ── Pemrosesan terpadu (teks maupun suara) ────────────────────────────────
+    # Blok ini menangani input dari dua sumber sekaligus: teks manual dan
+    # transkripsi suara. Pesan suara ditandai dengan ikon 🎙️ di bubble.
+    if user_input:
+        display_label = f"🎙️ {user_input}" if input_source == "voice" else user_input
+
         # Bangun dua representasi pesan secara bersamaan:
         #   user_api_parts  : list types.Part untuk dikirim ke Gemini API
         #   display_parts   : list dict untuk ditampilkan di UI
         user_api_parts: list[types.Part] = [types.Part(text=user_input)]
-        display_parts: list = [{"type": "text", "data": user_input}]
+        display_parts: list = [{"type": "text", "data": display_label}]
 
         for f in (uploaded_files or []):
             raw = f.read()
@@ -233,6 +309,7 @@ elif menu == "🎨 Image Generation":
     st.title("🎨 Image Generation")
     st.markdown(
         "Ubah ide Anda menjadi sebuah gambar hanya dengan mendeskripsikannya. "
+        "Ketik prompt secara manual atau gunakan **input suara** untuk mendikte prompt. "
         "Aktifkan **Prompt Enhancer** agar AI membantu memperkaya deskripsi Anda "
         "sebelum gambar di-generate."
     )
@@ -251,8 +328,51 @@ elif menu == "🎨 Image Generation":
         ),
     )
 
+    # ── Voice input untuk prompt ──────────────────────────────────────────────
+    # Jika ada transkrip suara dari rerun sebelumnya, injeksikan ke widget
+    # text area melalui session state (key binding Streamlit).
+    # Alur: user rekam → klik "Transkrip ke Prompt" → simpan ke
+    # session_state.img_voice_prompt → rerun → injeksi ke img_prompt_value
+    # → text area menampilkan hasil transkrip.
+    if "img_voice_prompt" in st.session_state:
+        st.session_state.img_prompt_value = st.session_state.pop("img_voice_prompt")
+    elif "img_prompt_value" not in st.session_state:
+        st.session_state.img_prompt_value = ""
+
+    with st.expander("🎙️ Rekam prompt dengan suara (opsional)"):
+        img_voice = st.audio_input(
+            "Rekam prompt Anda",
+            label_visibility="collapsed",
+        )
+        if img_voice:
+            col_ibtn, _ = st.columns([1, 3])
+            with col_ibtn:
+                transcribe_btn = st.button(
+                    "📝 Transkrip ke Prompt",
+                    type="secondary",
+                    use_container_width=True,
+                )
+            if transcribe_btn:
+                with st.spinner("Mentranskrip suara…"):
+                    try:
+                        transcribed = transcribe_audio(img_voice.read())
+                        if transcribed:
+                            # Simpan ke session state; akan diinjeksi ke text area
+                            # pada rerun berikutnya via key binding img_prompt_value
+                            st.session_state.img_voice_prompt = transcribed
+                            st.rerun()
+                        else:
+                            st.warning("Transkripsi kosong, coba rekam ulang.")
+                    except Exception as e:
+                        st.error(f"Gagal mentranskrip: {e}")
+
+    # ── Prompt text area ──────────────────────────────────────────────────────
+    # key="img_prompt_value" mengikat widget ini ke session_state.img_prompt_value.
+    # Saat nilai session state diperbarui (dari transkrip suara), text area
+    # otomatis menampilkan nilai baru tersebut pada rerun berikutnya.
     prompt = st.text_area(
         "Prompt",
+        key="img_prompt_value",
         placeholder="Contoh: A futuristic city at night with neon lights reflecting on a rainy street…",
         height=130,
     )
